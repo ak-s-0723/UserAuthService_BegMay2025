@@ -1,11 +1,17 @@
 package org.example.userauthservice_begmay2025.controllers;
 
+import org.antlr.v4.runtime.misc.Pair;
 import org.example.userauthservice_begmay2025.dtos.LoginRequestDto;
 import org.example.userauthservice_begmay2025.dtos.SignupRequestDto;
 import org.example.userauthservice_begmay2025.dtos.UserDto;
 import org.example.userauthservice_begmay2025.models.User;
 import org.example.userauthservice_begmay2025.services.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,11 +36,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public UserDto login(@RequestBody LoginRequestDto loginRequestDto) {
+    public ResponseEntity<UserDto> login(@RequestBody LoginRequestDto loginRequestDto) {
         try {
-            User user  = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
-            return from(user);
-        }catch (Exception exception) {
+            Pair<User,String> userTokenPair = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
+            UserDto userDto = from(userTokenPair.a);
+            MultiValueMap<String,String> headers = new LinkedMultiValueMap<>();
+            headers.add(HttpHeaders.SET_COOKIE, userTokenPair.b);
+            return new ResponseEntity<>(userDto,headers, HttpStatusCode.valueOf(201));
+        }
+        catch (Exception exception) {
             throw exception;
         }
     }
