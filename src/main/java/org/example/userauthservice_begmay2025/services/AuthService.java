@@ -1,12 +1,16 @@
 package org.example.userauthservice_begmay2025.services;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.security.MacAlgorithm;
 import org.antlr.v4.runtime.misc.Pair;
 import org.example.userauthservice_begmay2025.exceptions.PasswordMismatchException;
 import org.example.userauthservice_begmay2025.exceptions.UserAlreadySignedInException;
 import org.example.userauthservice_begmay2025.exceptions.UserNotFoundInSystemException;
 import org.example.userauthservice_begmay2025.models.User;
+import org.example.userauthservice_begmay2025.models.UserSession;
 import org.example.userauthservice_begmay2025.repos.UserRepo;
+import org.example.userauthservice_begmay2025.repos.UserSessionRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -33,6 +37,13 @@ public class AuthService {
 
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
+
+    @Autowired
+    private UserSessionRepo userSessionRepo;
+
+
+    @Autowired
+    private SecretKey secretKey;
 
     public User signup(String email, String password) {
       Optional<User> userOptional = userRepo.findByEmailEquals(email);
@@ -82,12 +93,48 @@ public class AuthService {
         claims.put("iss","scaler_uas");
 
 
-          MacAlgorithm algorithm = Jwts.SIG.HS256;
-          SecretKey secretKey = algorithm.key().build();
+//          MacAlgorithm algorithm = Jwts.SIG.HS256;
+//          SecretKey secretKey = algorithm.key().build();
 
           String token  =  Jwts.builder().claims(claims).signWith(secretKey).compact();
+
+          //Persisting generated token
+        UserSession userSession = new UserSession();
+        userSession.setUser(userOptional.get());
+        userSession.setToken(token);
+        userSessionRepo.save(userSession);
+
 
           return new Pair<User,String>(userOptional.get(),token);
 
     }
+
+
+    public Boolean validateToken(String token,Long userId) {
+       Optional<UserSession> optionalUserSession = userSessionRepo.findByTokenAndUser_Id(token,userId);
+
+       if(optionalUserSession.isEmpty()) return false;
+
+       UserSession userSession = optionalUserSession.get();
+       String persistedToken = userSession.getToken();
+
+       //Parsing token to get payload to get expiry
+        JwtParser jwtParser = Jwts.parser().verifyWith(secretKey).build();
+        Claims claims = jwtParser.parseSignedClaims(token).getPayload();
+
+        Long expiry = (Long)claims.get("exp");
+        Long currentTime = System.currentTimeMillis();
+
+        System.out.println(expiry);
+        System.out.println(currentTime);
+
+        if(currentTime > expiry) {
+            System.out.println("Token has expired");
+            return false;
+        }
+
+        return true;
+    }
 }
+
+

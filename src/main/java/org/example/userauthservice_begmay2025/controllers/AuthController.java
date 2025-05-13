@@ -4,10 +4,13 @@ import org.antlr.v4.runtime.misc.Pair;
 import org.example.userauthservice_begmay2025.dtos.LoginRequestDto;
 import org.example.userauthservice_begmay2025.dtos.SignupRequestDto;
 import org.example.userauthservice_begmay2025.dtos.UserDto;
+import org.example.userauthservice_begmay2025.dtos.ValidateTokenRequest;
 import org.example.userauthservice_begmay2025.models.User;
 import org.example.userauthservice_begmay2025.services.AuthService;
+import org.example.userauthservice_begmay2025.utils.UserMapperUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -28,7 +31,7 @@ public class AuthController {
     public UserDto signup(@RequestBody SignupRequestDto signupRequestDto) {
         try {
             User user = authService.signup(signupRequestDto.getEmail(),signupRequestDto.getPassword());
-            return from(user);
+            return UserMapperUtil.from(user);
         }catch (Exception exception) {
             throw exception;
         }
@@ -39,7 +42,7 @@ public class AuthController {
     public ResponseEntity<UserDto> login(@RequestBody LoginRequestDto loginRequestDto) {
         try {
             Pair<User,String> userTokenPair = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
-            UserDto userDto = from(userTokenPair.a);
+            UserDto userDto = UserMapperUtil.from(userTokenPair.a);
             MultiValueMap<String,String> headers = new LinkedMultiValueMap<>();
             headers.add(HttpHeaders.SET_COOKIE, userTokenPair.b);
             return new ResponseEntity<>(userDto,headers, HttpStatusCode.valueOf(201));
@@ -49,10 +52,20 @@ public class AuthController {
         }
     }
 
-    private UserDto from(User user) {
-        UserDto userDto = new UserDto();
-        userDto.setId(user.getId());
-        userDto.setEmail(user.getEmail());
-        return userDto;
+    @PostMapping("/validateToken")
+    public ResponseEntity<String> validateToken(@RequestBody ValidateTokenRequest validateTokenRequest) {
+       Boolean result = authService.validateToken(validateTokenRequest.getToken(), validateTokenRequest.getUserId());
+       if(result) {
+           return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+       }else {
+           return new ResponseEntity<>("FAILURE", HttpStatus.UNAUTHORIZED);
+       }
     }
+
+//    private UserDto from(User user) {
+//        UserDto userDto = new UserDto();
+//        userDto.setId(user.getId());
+//        userDto.setEmail(user.getEmail());
+//        return userDto;
+//    }
 }
