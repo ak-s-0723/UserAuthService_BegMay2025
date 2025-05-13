@@ -29,7 +29,9 @@ public class UserService {
 
 
     public User createUer(User input) {
-       return userRepo.save(input);
+        Optional<User> userOptional = userRepo.findByEmailEquals(input.getEmail());
+        if(userOptional.isEmpty()) return userRepo.save(input);
+        return null;
     }
 
 
